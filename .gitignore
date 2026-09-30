@@ -1,0 +1,59 @@
+# ─── Node.js ──────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ─── Environment Variables (NEVER commit secrets) ─────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# ─── Next.js Frontend ────────────────────────────────
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel/
+
+# ─── NestJS Backend ───────────────────────────────────
+backend/dist/
+backend/build/
+
+# ─── Prisma ───────────────────────────────────────────
+# Keep schema.prisma and migrations — exclude generated client
+backend/node_modules/
+
+# ─── Database ─────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Logs ─────────────────────────────────────────────
+logs/
+*.log
+lerna-debug.log*
+
+# ─── OS Files ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE / Editor ─────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ─── TypeScript ───────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Test Coverage ────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── PDFs (large binary assets) ───────────────────────
+*.pdf

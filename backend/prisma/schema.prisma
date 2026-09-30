@@ -1,0 +1,428 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// 1. PLATFORM LEVEL MODELS (No tenant_id)
+// ==========================================
+
+model Tenant {
+  id           String   @id @default(uuid())
+  name         String   @default("")
+  slug         String   @unique
+  plan         String   @default("PRO") // STARTER, PRO, BUSINESS
+  status       String   @default("ACTIVE") // ACTIVE, TRIAL, SUSPENDED, OFFBOARDING
+  owner_email  String   @default("")
+  owner_phone  String   @default("")
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  domains       Domain[]
+  theme         TenantTheme?
+  users         User[]
+  customers     Customer[]
+  categories    Category[]
+  products      Product[]
+  collections   Collection[]
+  coupons       Coupon[]
+  orders        Order[]
+  events        AnalyticsEvent[]
+  integrations  TenantIntegration[]
+  whatsapp_logs WhatsAppLog[]
+  audit_logs    AuditLog[]
+
+  @@map("tenants")
+}
+
+model Domain {
+  id                 String    @id @default(uuid())
+  tenant_id          String
+  domain             String    @unique
+  is_primary         Boolean   @default(false)
+  verification_token String?
+  verified_at        DateTime?
+  ssl_status         String    @default("ACTIVE")
+  created_at         DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("domains")
+}
+
+model PlatformAdmin {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  name          String
+  role          String   @default("SUPER_ADMIN")
+  created_at    DateTime @default(now())
+
+  @@map("platform_admins")
+}
+
+// ==========================================
+// 2. TENANT-OWNED MODELS (tenant_id scoped)
+// ==========================================
+
+model TenantTheme {
+  id               String   @id @default(uuid())
+  tenant_id        String   @unique
+  brand_name       String
+  logo_url         String?
+  favicon_url      String?
+  primary_color    String   @default("#7C3AED")
+  secondary_color  String   @default("#EC4899")
+  accent_color     String   @default("#10B981")
+  background_color String   @default("#F8FAFC")
+  text_color       String   @default("#0F172A")
+  heading_font     String   @default("Playfair Display")
+  body_font        String   @default("Plus Jakarta Sans")
+  border_radius    String   @default("8px")
+  card_style       String   @default("glassmorphism")
+  header_style     String   @default("sticky")
+  custom_css       String?
+  updated_at       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@map("tenant_themes")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  email         String
+  phone         String?
+  password_hash String
+  name          String
+  role          String   @default("OWNER") // OWNER, MANAGER, INVENTORY_MANAGER, ORDER_MANAGER, MARKETING_MANAGER
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, email])
+  @@index([tenant_id])
+  @@map("users")
+}
+
+model Customer {
+  id           String   @id @default(uuid())
+  tenant_id    String
+  email        String?
+  phone        String?
+  name         String?
+  total_orders Int      @default(0)
+  total_spent  Float    @default(0.0)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  tenant    Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  addresses CustomerAddress[]
+  orders    Order[]
+
+  @@unique([tenant_id, email])
+  @@unique([tenant_id, phone])
+  @@index([tenant_id])
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  customer_id   String
+  name          String
+  phone         String
+  address_line1 String
+  address_line2 String?
+  city          String
+  state         String
+  pincode       String
+  is_default    Boolean  @default(false)
+  created_at    DateTime @default(now())
+
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, customer_id])
+  @@map("customer_addresses")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  name        String
+  slug        String
+  description String?
+  image_url   String?
+  created_at  DateTime @default(now())
+
+  tenant   Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([tenant_id, slug])
+  @@index([tenant_id])
+  @@map("categories")
+}
+
+model Product {
+  id                 String   @id @default(uuid())
+  tenant_id          String
+  title              String
+  slug               String
+  description        String
+  category_id        String?
+  mrp                Float
+  price              Float
+  sku                String
+  barcode            String?
+  weight_grams       Int?
+  ingredients        String?
+  benefits           String?
+  usage_instructions String?
+  faqs_json          String?
+  is_bestseller      Boolean  @default(false)
+  is_new_launch      Boolean  @default(true)
+  status             String   @default("ACTIVE") // DRAFT, ACTIVE, ARCHIVED
+  sales_count        Int      @default(0)
+  seo_title          String?
+  seo_description    String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  tenant      Tenant              @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  category    Category?           @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  variants    ProductVariant[]
+  media       ProductMedia[]
+  collections CollectionProduct[]
+  order_items OrderItem[]
+
+  @@unique([tenant_id, slug])
+  @@unique([tenant_id, sku])
+  @@index([tenant_id])
+  @@map("products")
+}
+
+model ProductVariant {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  product_id      String
+  title           String
+  sku             String
+  price           Float
+  mrp             Float
+  inventory_count Int      @default(10)
+  image_url       String?
+  created_at      DateTime @default(now())
+
+  product     Product     @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  order_items OrderItem[]
+
+  @@unique([tenant_id, sku])
+  @@index([tenant_id, product_id])
+  @@map("product_variants")
+}
+
+model ProductMedia {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  product_id String
+  url        String
+  alt_text   String?
+  sort_order Int      @default(0)
+  created_at DateTime @default(now())
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, product_id])
+  @@map("product_media")
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  title       String
+  slug        String
+  description String?
+  type        String   @default("MANUAL") // MANUAL, AUTOMATED
+  rule_json   String?
+  created_at  DateTime @default(now())
+
+  tenant   Tenant              @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  products CollectionProduct[]
+
+  @@unique([tenant_id, slug])
+  @@index([tenant_id])
+  @@map("collections")
+}
+
+model CollectionProduct {
+  tenant_id     String
+  collection_id String
+  product_id    String
+  created_at    DateTime @default(now())
+
+  collection Collection @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@id([collection_id, product_id])
+  @@index([tenant_id])
+  @@map("collection_products")
+}
+
+model Coupon {
+  id                  String    @id @default(uuid())
+  tenant_id           String
+  code                String
+  discount_type       String    @default("PERCENTAGE") // PERCENTAGE, FIXED
+  discount_value      Float
+  min_order_value     Float     @default(0)
+  max_discount_amount Float?
+  usage_limit         Int?
+  used_count          Int       @default(0)
+  expires_at          DateTime?
+  is_active           Boolean   @default(true)
+  created_at          DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("coupons")
+}
+
+model Order {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  order_number          String
+  customer_id           String?
+  customer_name         String
+  customer_email        String
+  customer_phone        String
+  shipping_address_json String
+  subtotal              Float
+  discount_amount       Float    @default(0)
+  shipping_fee          Float    @default(0)
+  total_amount          Float
+  payment_method        String   @default("RAZORPAY") // RAZORPAY, COD
+  payment_status        String   @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  fulfillment_status    String   @default("UNFULFILLED") // UNFULFILLED, CONFIRMED, PACKED, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, RTO
+  razorpay_order_id     String?
+  razorpay_payment_id   String?
+  tracking_awb          String?
+  tracking_courier      String?
+  tracking_url          String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  tenant   Tenant       @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer Customer?    @relation(fields: [customer_id], references: [id], onDelete: SetNull)
+  items    OrderItem[]
+  events   OrderEvent[]
+
+  @@unique([tenant_id, order_number])
+  @@index([tenant_id])
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String  @id @default(uuid())
+  tenant_id     String
+  order_id      String
+  product_id    String
+  variant_id    String?
+  product_title String
+  variant_title String?
+  sku           String
+  price         Float
+  quantity      Int
+
+  order   Order           @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variant_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, order_id])
+  @@map("order_items")
+}
+
+model OrderEvent {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  order_id   String
+  status     String
+  note       String
+  created_by String   @default("SYSTEM")
+  created_at DateTime @default(now())
+
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, order_id])
+  @@map("order_events")
+}
+
+model AnalyticsEvent {
+  id           String   @id @default(uuid())
+  tenant_id    String
+  event_type   String   // PRODUCT_VIEW, ADD_TO_CART, INITIATE_CHECKOUT, ORDER_PLACED, ABANDONED_CART
+  session_id   String
+  customer_id  String?
+  payload_json String
+  created_at   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, event_type])
+  @@map("analytics_events")
+}
+
+model TenantIntegration {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  provider         String   // RAZORPAY, SHIPROCKET, META_WABA, META_PIXEL
+  encrypted_config String
+  is_enabled       Boolean  @default(true)
+  updated_at       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, provider])
+  @@index([tenant_id])
+  @@map("tenant_integrations")
+}
+
+model WhatsAppLog {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  phone_number  String
+  template_name String
+  status        String   @default("QUEUED") // QUEUED, SENT, DELIVERED, FAILED
+  payload_json  String
+  sent_at       DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("whatsapp_logs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  actor_id   String
+  action     String
+  resource   String
+  details    String
+  ip_address String?
+  created_at DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("audit_logs")
+}

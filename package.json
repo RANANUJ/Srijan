@@ -1,0 +1,29 @@
+{
+  "name": "srijan-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-Ready White-Label Multi-Tenant D2C E-Commerce SaaS Platform",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "db:push": "npm --prefix backend run db:push",
+    "db:seed": "npm --prefix backend run db:seed"
+  },
+  "keywords": [
+    "multi-tenant",
+    "d2c",
+    "ecommerce",
+    "white-label",
+    "nestjs",
+    "nextjs",
+    "prisma"
+  ],
+  "author": "Srijan Platform Team",
+  "license": "UNLICENSED"
+}
